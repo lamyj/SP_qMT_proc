@@ -1,5 +1,9 @@
+import argparse
+import os
 import subprocess
 import sys
+
+import nibabel
 
 def get_physCPU_number():
     """ Return the number of physical CPU cores.
@@ -33,3 +37,31 @@ def get_physCPU_number():
             raise ValueError(
                 "found {} physical cores < 1".format(cpu_count_physical))
     return cpu_count_physical
+
+def tuple_argument(type_, count):
+    def parser(value):
+        items = [type_(x) for x in value.split(",")]
+        if len(items) != count:
+            raise argparse.ArgumentTypeError(
+                "Wrong arguments count: expected {}, got{}".format(
+                    count, len(items)))
+        return items
+    return parser
+
+def image_argument(value):
+    if not os.path.exists(value):
+        raise argparse.ArgumentTypeError("No such file: {}".format(value))
+    try:
+        image = nibabel.load(value)
+    except Exception as e:
+        raise argparse.ArgumentTypeError(str(e))
+    else:
+        return image
+
+def add_verbosity(parser):
+    """ Add verbosity argument to an argument parser
+    """
+    
+    parser.add_argument(
+        "--verbosity", "-v",
+        choices=["warning", "info", "debug"], default="warning")
