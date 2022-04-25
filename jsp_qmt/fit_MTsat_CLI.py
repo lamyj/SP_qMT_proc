@@ -1,223 +1,161 @@
-# ///////////////////////////////////////////////////////////////////////////////////////////////
+# //////////////////////////////////////////////////////////////////////////////
 # // L. SOUSTELLE, PhD, Aix Marseille Univ, CNRS, CRMBM, Marseille, France
 # // 2021/02/06
 # // Contact: lucas.soustelle@univ-amu.fr
-# ///////////////////////////////////////////////////////////////////////////////////////////////
+# //////////////////////////////////////////////////////////////////////////////
 
-import sys
-import os
-import numpy
-import nibabel
-import scipy.optimize
-import scipy.integrate
-import scipy.linalg
-import time
-import multiprocessing
-import argparse; from argparse import RawTextHelpFormatter
+import argparse
 import collections
+import logging
+import multiprocessing
+import sys
+import textwrap
+import time
 
-from .utils import get_physCPU_number
+import nibabel
+import numpy
+import scipy.optimize
+
+try:
+    from . import utils
+except ImportError:
+    import utils
 
 def main():
-    ## parse arguments
-    text_description = "Compute MT saturation map [1,2] from an MT-prepared SPGR experiment. Outputs are in percentage unit.\
-                        \nReferences:\
-                        \n\t [1] G. Helms et al., High-resolution maps of magnetization transfer with inherent correction for RF inhomogeneity and T1 relaxation obtained from 3D FLASH MRI, MRM 2008;60:1396-1407 \
-                        \n\t [2] G. Helms et al., Modeling the influence of TR and excitation flip angle on the magnetization transfer ratio (MTR) in human brain obtained from 3D spoiled gradient echo MRI. MRM 2010;64:177-185 \
-                        " 
-    parser = argparse.ArgumentParser(description=text_description,formatter_class=RawTextHelpFormatter)
-    parser.add_argument('MT',           help="Input 4D (MT0/MTw) NIfTI path")
-    parser.add_argument('T1',           help="Input T1 (in sec) NIfTI path")
-    parser.add_argument('MTsat',        help="Output MTsat NIfTI path")
-    parser.add_argument('SEQparx',      nargs="?",help="Sequence parameters (comma-separated), in this order:   \n"
-                                                                "\t 1) MT preparation module duration (ms) \n"
-                                                                "\t 2) Sequence TR (ms) \n"
-                                                                "\t 3) Readout flip angle (deg) \n"
-                                                                "\t e.g. 10.0,43.0,10.0")
-    parser.add_argument('--MTsatB1sq',  nargs="?",help="Output MTsat image normalized by squared B1 NIfTI path")
-    parser.add_argument('--B1',         nargs="?",help="Input B1 map (in absolute unit) NIfTI path")
-    parser.add_argument('--mask',       nargs="?",help="Input binary mask NIfTI path")
-    parser.add_argument('--xtol',       nargs="?",type=float, default=1e-6, help="x tolerance for root finding (default: 1e-6)")
-    parser.add_argument('--nworkers',   nargs="?",type=int, default=1, help="Use this for multi-threading computation (default: 1)")
+    description = (
+        "Compute MT saturation map [1,2] from an MT-prepared SPGR experiment. "
+            "Outputs are in percentage unit.\n"
+        "References:\n"
+        "\t [1] G. Helms et al., High-resolution maps of magnetization "
+            "transfer with inherent correction for RF inhomogeneity and T1 "
+            "relaxation obtained from 3D FLASH MRI, MRM 2008;60:1396-1407\n"
+        "\t [2] G. Helms et al., Modeling the influence of TR and excitation "
+            "flip angle on the magnetization transfer ratio (MTR) in human "
+            "brain obtained from 3D spoiled gradient echo MRI. "
+            "MRM 2010;64:177-185")
     
-    args                = parser.parse_args()
-    MT_in_niipath       = args.MT
-    MTsat_out_niipath   = args.MTsat 
-    T1map_in_niipath    = args.T1
-    B1_in_niipath       = args.B1
-    mask_in_niipath     = args.mask
-    xtolVal             = args.xtol
-    NWORKERS            = args.nworkers if args.nworkers <= get_physCPU_number() else get_physCPU_number()
-
-    #### Sequence parx 
-    print('')
-    print('--------------------------------------------------')
-    print('----- Checking entries for MTsat processing ----')
-    print('--------------------------------------------------')
-    print('')        
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument(
+        "MT", type=utils.image_argument, help="Input 4D (MT0/MTw) NIfTI path")
+    parser.add_argument(
+        "T1", type=utils.image_argument, help="Input T1 (in sec) NIfTI path")
+    parser.add_argument(
+        "MTsat", help="Output MTsat NIfTI path")
+    parser.add_argument(
+        "SEQparx", nargs="?", type=utils.tuple_argument(float, 3),
+        help="Sequence parameters (comma-separated), in this order:\n"
+            "\t1) MT preparation module duration (ms)\n"
+            "\t2) Sequence TR (ms)\n"
+            "\t3) Readout flip angle (deg)\n"
+            "\te.g. 10.0,43.0,10.0")
+    parser.add_argument(
+        "--MTsatB1sq", nargs="?",
+        help="Output MTsat image normalized by squared B1 NIfTI path")
+    parser.add_argument(
+        "--B1", nargs="?", type=utils.image_argument, 
+        help="Input B1 map (in absolute unit) NIfTI path")
+    parser.add_argument(
+        "--mask", nargs="?", type=utils.image_argument,
+        help="Input binary mask NIfTI path")
+    parser.add_argument(
+        "--xtol", nargs="?", type=float, default=1e-6,
+        help="x tolerance for root finding (default: 1e-6)")
+    parser.add_argument(
+        "--nworkers", nargs="?", type=int, default=1,
+        help="Use this for multi-threading computation (default: 1)")
+    utils.add_verbosity(parser)
     
-    args.SEQparx = args.SEQparx.split(',')        
-    if len(args.SEQparx) == 3: 
-        SEQparx_NT                      = collections.namedtuple('SEQparx_NT','TR1 TR FA')
-        SEQparx = SEQparx_NT(  TR1      = float(args.SEQparx[0])*1e-3, 
-                               TR       = float(args.SEQparx[1])*1e-3,
-                               FA       = float(args.SEQparx[2]))
-        print('Summary of input sequence parameters:')
-        print('\t MT preparation module duration: {:.1f} ms'.format(SEQparx.TR1*1e3))
-        print('\t Sequence TR: {:.1f} ms'.format(SEQparx.TR*1e3))
-        print('\t Readout flip angle: {:.1f} deg'.format(SEQparx.FA))
-        print('')  
-    else: 
-        parser.error('Wrong amount of sequence parameters (SEQparx \
-                             --- expected 3, found {})' .format(len(args.SEQparx)))
+    args = parser.parse_args()
+    nworkers = min(args.nworkers, utils.get_physCPU_number())
+    logging.basicConfig(
+        level=args.verbosity.upper(),
+        format="%(levelname)s - %(name)s: %(message)s")
     
-    # last check 
-    for field in SEQparx._fields:
-        if(getattr(SEQparx, field) < 0):
-            parser.error('All SEQparx values should be positive')
+    # Create and check equence parameters
+    SEQparx_NT = collections.namedtuple("SEQparx_NT","TR1 TR FA")
+    SEQparx = SEQparx_NT(
+        TR1=args.SEQparx[0]*1e-3, TR=args.SEQparx[1]*1e-3,
+        FA=numpy.radians(args.SEQparx[2]))
     
+    for value in SEQparx:
+        if value<0:
+            parser.error("All SEQparx values should be positive")
     
-    #### check input data
-    # check MT data
-    if not os.path.isfile(MT_in_niipath) or len(nibabel.load(MT_in_niipath).shape) != 4:
-        parser.error('Volume {} does not exist or is not 4D' .format(MT_in_niipath))
-    print('MT provided volume exist')
-        
-    # check T1 map
-    if not os.path.isfile(T1map_in_niipath):
-        parser.error('T1 map volume {} does not exist' .format(T1map_in_niipath))
-    print('T1 map provided volume exist')
+    logging.info(textwrap.dedent("""\
+        Summary of input sequence parameters:\n
+        \tMT preparation module duration: {:.1f} ms
+        \tSequence TR: {:.1f} ms
+        \tReadout flip angle: {:.1f} deg
+        """).format(SEQparx.TR1*1e3, SEQparx.TR*1e3, numpy.degrees(SEQparx.FA)))
     
-    # check B1 map
+    # Check input data
+    if args.MT.ndim != 4:
+        parser.error("Volume {} is not 4D".format(args.MT.get_filename()))
     if args.B1 is None:
-        print('No B1 map provided (this is highly not recommended)')
-    elif args.B1 is not None and not os.path.isfile(B1_in_niipath):
-        parser.error('B1 map volume {} does not exist' .format(B1_in_niipath))
-    else:
-        print('B1 map provided volume exist')
-        
-        
-    # check mask
-    if args.mask is None:
-        print('No mask provided')
-    elif args.mask is not None and not os.path.isfile(mask_in_niipath):
-        parser.error('Mask map volume {} does not exist' .format(mask_in_niipath))
-    else:
-        print('Mask provided volume exist')
-        
-
-    #### load data
-    # get MT data
-    MT_data = nibabel.load(MT_in_niipath).get_fdata()
-
-    # get B1 data
-    if args.B1 is not None:
-        B1_map = nibabel.load(B1_in_niipath).get_fdata()
-    else:
-        B1_map = numpy.ones(MT_data.shape[0:3])
-        
-    # get T1 data
-    T1_map = nibabel.load(T1map_in_niipath).get_fdata()
-
-    # get indices to process from mask
-    if args.mask is not None:
-        mask_data   = nibabel.load(mask_in_niipath).get_fdata()
-    else:
-        mask_data   = numpy.ones(MT_data.shape[0:3])
-    mask_idx = numpy.asarray(numpy.where(mask_data == 1))
+        logging.warning("No B1 map provided (this is highly not recommended)")
     
-
-    ################ Estimation
-    #### build xData
-    T1_data     = T1_map[mask_idx[0],mask_idx[1],mask_idx[2]][numpy.newaxis,:].T
-    B1_data     = B1_map[mask_idx[0],mask_idx[1],mask_idx[2]][numpy.newaxis,:].T
+    # Get MT data
+    MT_data = args.MT.get_fdata()
+    MT0_data = MT_data[..., 0]
+    MTw_data = MT_data[..., 1]
+    shape = MT0_data.shape
     
-    cosFA_RO    = numpy.cos(SEQparx.FA * B1_data *numpy.pi/180)
-    E1          = numpy.exp(numpy.divide(-SEQparx.TR1,T1_data, \
-                                         out=numpy.ones(T1_data.shape, dtype=float), where=T1_data!=0))
-    E2          = numpy.exp(numpy.divide(-(SEQparx.TR-SEQparx.TR1),T1_data, \
-                                         out=numpy.ones(T1_data.shape, dtype=float), where=T1_data!=0))
-    Mz_MT0      = numpy.divide(1-E1*E2,(1-E1*E2*cosFA_RO), \
-                                         out=numpy.ones(T1_data.shape, dtype=float), where=T1_data!=0)    
-    xData       = numpy.hstack((E1,E2,cosFA_RO,Mz_MT0))
+    # Get T1 and optional B1 data
+    T1_map = args.T1.get_fdata()
+    B1_map = args.B1.get_fdata() if args.B1 is not None else numpy.ones(shape)
     
-    #### build yData
-    MT0_data    = MT_data[:,:,:,0]
-    MTw_data    = MT_data[:,:,:,1]
-    MT0_ydata   = MT0_data[mask_idx[0],mask_idx[1],mask_idx[2]][numpy.newaxis,:].T
-    MTw_yData   = numpy.divide(MTw_data[mask_idx[0],mask_idx[1],mask_idx[2]][numpy.newaxis,:].T,MT0_ydata, \
-                                         out=numpy.ones(T1_data.shape, dtype=float), where=MT0_ydata!=0)
+    # Compute the mask of usable voxels
+    mask = args.mask.get_fdata() if args.mask is not None else numpy.ones(shape)
+    mask = (mask != 0) & ~numpy.isnan(T1_map) & (T1_map != 0) & (MT0_data != 0)
     
-    #### iterable lists
-    xtolVal     = [xtolVal] * xData.shape[0]
-    MT_iterable = [*zip(xData,MTw_yData,xtolVal)]
-        
-    #### run
-    print('')
-    print('--------------------------------------------------')
-    print('--------- Proceeding to MTsat estimation ---------')
-    print('--------------------------------------------------')
-    print('')
+    # Estimation
+    T1_data = T1_map[mask]
+    cosFA_RO = numpy.cos(SEQparx.FA * B1_map[mask])
+    E1 = numpy.exp(-SEQparx.TR1 / T1_data)
+    E2 = numpy.exp(-(SEQparx.TR-SEQparx.TR1) / T1_data)
+    Mz_MT0 = (1-E1*E2) / (1-E1*E2*cosFA_RO)
+    signal_ratio = MTw_data[mask]/MT0_data[mask]
+    xtol = numpy.full(T1_data.shape, args.xtol)
+    data = numpy.stack((E1, E2, cosFA_RO, Mz_MT0, signal_ratio, xtol), axis=-1)
     
     start_time = time.time()
-    with multiprocessing.Pool(NWORKERS) as pool:
-        MTsat = pool.starmap(fit_MTsat_brentq,MT_iterable)
-    delay = time.time()
-    print("---- Done in {} seconds ----" .format(delay - start_time))
-    MTsat = numpy.array(MTsat,dtype=float)
+    with multiprocessing.Pool(nworkers) as pool:
+        MTsat = pool.starmap(fit, data)
+    stop_time = time.time()
+    logging.debug("Done in {} seconds".format(stop_time - start_time))
+    MTsat = numpy.array(MTsat, dtype=float)
     
-    
-    ################ store & save NIfTI(s)
-    ref_nii = nibabel.load(MT_in_niipath)
-    MTsat_map = numpy.full(ref_nii.shape[0:3],0,dtype=float)
-    MTsat_map[mask_idx[0],mask_idx[1],mask_idx[2]] = MTsat*100
+    # Create & save NIfTI(s)
+    MTsat_map = numpy.zeros(shape)
+    MTsat_map[mask] = MTsat*100
     # MTsat_map[(MTsat_map < 0) | (MTsat_map > 1000)] = 0
-    new_img = nibabel.Nifti1Image(MTsat_map, ref_nii.affine, ref_nii.header)
-    nibabel.save(new_img, MTsat_out_niipath)
+    nibabel.save(nibabel.Nifti1Image(MTsat_map, args.MT.affine), args.MTsat)
     
     if args.MTsatB1sq is not None and args.B1 is not None:
-        MTsatB1sq_map = numpy.full(ref_nii.shape[0:3],0,dtype=float)
-        MTsatB1sq_map[mask_idx[0],mask_idx[1],mask_idx[2]] = MTsat*100
-        MTsatB1sq_map = numpy.divide(MTsat_map, B1_map**2, out=numpy.zeros(MTsat_map.shape, dtype=float), where=B1_map!=0)
-        new_img = nibabel.Nifti1Image(MTsatB1sq_map, ref_nii.affine, ref_nii.header)
-        nibabel.save(new_img, args.MTsatB1sq)
+        MTsatB1sq_map = numpy.zeros(shape)
+        MTsatB1sq_map[mask] = MTsat_map[mask]/B1_map[mask]**2
+        nibabel.save(
+            nibabel.Nifti1Image(MTsatB1sq_map, args.MT.affine), args.MTsatB1sq)
 
-   
-###################################################################
-############## Fitting-related functions
-###################################################################
-def func_MTsat_GRE_root(delta,xData,yData):
-    E1,E2,cosFA_RO,Mz_MT0 = xData
+def fit(*args):
+    """ Fit the MTsat in a single voxel using Brent’s method. The fitted value
+        is restricted between 0% and 30%. On error, return 0.
+    """
+    xData, yData, xtol = args[:4], args[4], args[5]
+    try:
+        return scipy.optimize.brentq(MTsat_GRE, 0, 0.3, (xData, yData), xtol)
+    except:
+        return 0.
+
+def MTsat_GRE(delta, xData, yData):
+    """ Distance between the predicted MTsat based on delta and xData and the
+        observed MTsat based on yData.
+    """
+    
+    E1, E2, cosFA_RO, Mz_MT0 = xData
     Mz_MTw = ((1-E1) + E1*(1-delta)*(1-E2)) / (1-E1*E2*cosFA_RO*(1-delta))
     return Mz_MTw/Mz_MT0 - yData
 
-def fit_MTsat_brentq(xData,yData,xtolVal):
-    # root-finding with Brent's method
-    # see: https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.brentq.html#scipy.optimize.brentq
-    try:
-        x0 = scipy.optimize.brentq(func_MTsat_GRE_root, 0, 0.3,
-                                    (xData,yData),xtol=xtolVal)
-        return x0
-    except:
-        return 0
-
-###################################################################
-############## main
-################################################################### 
 if __name__ == "__main__":
     sys.exit(main()) 
-
-   
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
