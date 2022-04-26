@@ -16,57 +16,9 @@ import nibabel
 import numpy
 import scipy.optimize
 
-try:
-    from . import utils
-except ImportError:
-    import utils
+from . import utils
 
-def main():
-    description = (
-        "Compute MT saturation map [1,2] from an MT-prepared SPGR experiment. "
-            "Outputs are in percentage unit.\n"
-        "References:\n"
-        "\t [1] G. Helms et al., High-resolution maps of magnetization "
-            "transfer with inherent correction for RF inhomogeneity and T1 "
-            "relaxation obtained from 3D FLASH MRI, MRM 2008;60:1396-1407\n"
-        "\t [2] G. Helms et al., Modeling the influence of TR and excitation "
-            "flip angle on the magnetization transfer ratio (MTR) in human "
-            "brain obtained from 3D spoiled gradient echo MRI. "
-            "MRM 2010;64:177-185")
-    
-    parser = argparse.ArgumentParser(
-        description=description, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument(
-        "MT", type=utils.image_argument, help="Input 4D (MT0/MTw) NIfTI path")
-    parser.add_argument(
-        "T1", type=utils.image_argument, help="Input T1 (in sec) NIfTI path")
-    parser.add_argument(
-        "MTsat", help="Output MTsat NIfTI path")
-    parser.add_argument(
-        "SEQparx", nargs="?", type=utils.tuple_argument(float, 3),
-        help="Sequence parameters (comma-separated), in this order:\n"
-            "\t1) MT preparation module duration (ms)\n"
-            "\t2) Sequence TR (ms)\n"
-            "\t3) Readout flip angle (deg)\n"
-            "\te.g. 10.0,43.0,10.0")
-    parser.add_argument(
-        "--MTsatB1sq", nargs="?",
-        help="Output MTsat image normalized by squared B1 NIfTI path")
-    parser.add_argument(
-        "--B1", nargs="?", type=utils.image_argument, 
-        help="Input B1 map (in absolute unit) NIfTI path")
-    parser.add_argument(
-        "--mask", nargs="?", type=utils.image_argument,
-        help="Input binary mask NIfTI path")
-    parser.add_argument(
-        "--xtol", nargs="?", type=float, default=1e-6,
-        help="x tolerance for root finding (default: 1e-6)")
-    parser.add_argument(
-        "--nworkers", nargs="?", type=int, default=1,
-        help="Use this for multi-threading computation (default: 1)")
-    utils.add_verbosity(parser)
-    
-    args = parser.parse_args()
+def main(args):
     nworkers = min(args.nworkers, utils.get_physCPU_number())
     logging.basicConfig(
         level=args.verbosity.upper(),
@@ -157,5 +109,51 @@ def MTsat_GRE(delta, xData, yData):
     Mz_MTw = ((1-E1) + E1*(1-delta)*(1-E2)) / (1-E1*E2*cosFA_RO*(1-delta))
     return Mz_MTw/Mz_MT0 - yData
 
-if __name__ == "__main__":
-    sys.exit(main()) 
+def setup(subparsers):
+    description = (
+        "Compute MT saturation map [1,2] from an MT-prepared SPGR experiment. "
+            "Outputs are in percentage unit.\n"
+        "References:\n"
+        "\t [1] G. Helms et al., High-resolution maps of magnetization "
+            "transfer with inherent correction for RF inhomogeneity and T1 "
+            "relaxation obtained from 3D FLASH MRI, MRM 2008;60:1396-1407\n"
+        "\t [2] G. Helms et al., Modeling the influence of TR and excitation "
+            "flip angle on the magnetization transfer ratio (MTR) in human "
+            "brain obtained from 3D spoiled gradient echo MRI. "
+            "MRM 2010;64:177-185")
+    
+    parser = subparsers.add_parser(
+        "MTsat", aliases=["mtsat"], help="MT saturation map", 
+        description=description, formatter_class=argparse.RawTextHelpFormatter)
+    
+    parser.add_argument(
+        "MT", type=utils.image_argument, help="Input 4D (MT0/MTw) NIfTI path")
+    parser.add_argument(
+        "T1", type=utils.image_argument, help="Input T1 (in sec) NIfTI path")
+    parser.add_argument(
+        "MTsat", help="Output MTsat NIfTI path")
+    parser.add_argument(
+        "SEQparx", nargs="?", type=utils.tuple_argument(float, 3),
+        help="Sequence parameters (comma-separated), in this order:\n"
+            "\t1) MT preparation module duration (ms)\n"
+            "\t2) Sequence TR (ms)\n"
+            "\t3) Readout flip angle (deg)\n"
+            "\te.g. 10.0,43.0,10.0")
+    parser.add_argument(
+        "--MTsatB1sq", nargs="?",
+        help="Output MTsat image normalized by squared B1 NIfTI path")
+    parser.add_argument(
+        "--B1", nargs="?", type=utils.image_argument, 
+        help="Input B1 map (in absolute unit) NIfTI path")
+    parser.add_argument(
+        "--mask", nargs="?", type=utils.image_argument,
+        help="Input binary mask NIfTI path")
+    parser.add_argument(
+        "--xtol", nargs="?", type=float, default=1e-6,
+        help="x tolerance for root finding (default: 1e-6)")
+    parser.add_argument(
+        "--nworkers", nargs="?", type=int, default=1,
+        help="Use this for multi-threading computation (default: 1)")
+    utils.add_verbosity(parser)
+    
+    return parser
