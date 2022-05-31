@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 
 from . import fit_MTsat_CLI
@@ -21,7 +22,7 @@ def main():
     try:
         arguments.action(arguments)
     except Exception as e:
-        if verbosity == logging.DEBUG:
+        if getattr(logging, arguments.verbosity.upper()) <= logging.DEBUG:
             raise
         else:
             command_parsers[arguments.action].error(e)
