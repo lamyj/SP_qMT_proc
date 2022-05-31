@@ -7,7 +7,6 @@
 import argparse
 import collections
 import logging
-import multiprocessing
 import sys
 import textwrap
 import time
@@ -18,8 +17,11 @@ import scipy.optimize
 
 from . import utils
 
+import pyximport
+pyximport.install(language_level=3)
+from . import _MTsat
+
 def main(args):
-    nworkers = min(args.nworkers, utils.get_physCPU_number())
     logging.basicConfig(
         level=args.verbosity.upper(),
         format="%(levelname)s - %(name)s: %(message)s")
@@ -68,46 +70,24 @@ def main(args):
     E2 = numpy.exp(-(SEQparx.TR-SEQparx.TR1) / T1_data)
     Mz_MT0 = (1-E1*E2) / (1-E1*E2*cosFA_RO)
     signal_ratio = MTw_data[mask]/MT0_data[mask]
-    xtol = numpy.full(T1_data.shape, args.xtol)
-    data = numpy.stack((E1, E2, cosFA_RO, Mz_MT0, signal_ratio, xtol), axis=-1)
+    data = numpy.stack((E1, E2, cosFA_RO, Mz_MT0, signal_ratio), axis=-1)
     
     start_time = time.time()
-    with multiprocessing.Pool(nworkers) as pool:
-        MTsat = pool.starmap(fit, data)
+    fitted = _MTsat.fit(data, args.xtol)
     stop_time = time.time()
     logging.debug("Done in {} seconds".format(stop_time - start_time))
-    MTsat = numpy.array(MTsat, dtype=float)
+    
+    MTsat_map = numpy.zeros(shape)
+    MTsat_map[mask] = fitted*100
+    # MTsat_map[(MTsat_map < 0) | (MTsat_map > 1000)] = 0
     
     # Create & save NIfTI(s)
-    MTsat_map = numpy.zeros(shape)
-    MTsat_map[mask] = MTsat*100
-    # MTsat_map[(MTsat_map < 0) | (MTsat_map > 1000)] = 0
     nibabel.save(nibabel.Nifti1Image(MTsat_map, args.MT.affine), args.MTsat)
-    
     if args.MTsatB1sq is not None and args.B1 is not None:
         MTsatB1sq_map = numpy.zeros(shape)
         MTsatB1sq_map[mask] = MTsat_map[mask]/B1_map[mask]**2
         nibabel.save(
             nibabel.Nifti1Image(MTsatB1sq_map, args.MT.affine), args.MTsatB1sq)
-
-def fit(*args):
-    """ Fit the MTsat in a single voxel using Brent’s method. The fitted value
-        is restricted between 0% and 30%. On error, return 0.
-    """
-    xData, yData, xtol = args[:4], args[4], args[5]
-    try:
-        return scipy.optimize.brentq(MTsat_GRE, 0, 0.3, (xData, yData), xtol)
-    except:
-        return 0.
-
-def MTsat_GRE(delta, xData, yData):
-    """ Distance between the predicted MTsat based on delta and xData and the
-        observed MTsat based on yData.
-    """
-    
-    E1, E2, cosFA_RO, Mz_MT0 = xData
-    Mz_MTw = ((1-E1) + E1*(1-delta)*(1-E2)) / (1-E1*E2*cosFA_RO*(1-delta))
-    return Mz_MTw/Mz_MT0 - yData
 
 def setup(subparsers):
     description = (
@@ -151,9 +131,6 @@ def setup(subparsers):
     parser.add_argument(
         "--xtol", nargs="?", type=float, default=1e-6,
         help="x tolerance for root finding (default: 1e-6)")
-    parser.add_argument(
-        "--nworkers", nargs="?", type=int, default=1,
-        help="Use this for multi-threading computation (default: 1)")
     utils.add_verbosity(parser)
     
     return parser
