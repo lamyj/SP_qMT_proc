@@ -34,7 +34,7 @@ double cost(double F, T const & args)
     auto const D = A + (R1f+R*F)*Wb + (R1r+R)*Wf + Wb*Wf;
     auto const Es = expm_2_2(Rl*Ts);
     auto const Er = expm_2_2(Rl*Tr);
-    Double2x2 const C = {{std::cos(FAro*M_PI/180.), 0.}, {0., 1.}};
+    Double2x2 const C = {{std::cos(FAro), 0.}, {0., 1.}};
     static Double2x2 const I = {{1., 0.}, {0., 1.}};
     Double2x2 const W = {{-Wf, 0.}, {0., -Wb}};
     
