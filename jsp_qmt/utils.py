@@ -38,13 +38,14 @@ def get_physCPU_number():
                 "found {} physical cores < 1".format(cpu_count_physical))
     return cpu_count_physical
 
-def tuple_argument(type_, count):
+def tuple_argument(types):
     def parser(value):
-        items = [type_(x) for x in value.split(",")]
-        if len(items) != count:
+        items = value.split(",")
+        if len(items) != len(types):
             raise argparse.ArgumentTypeError(
-                "Wrong arguments count: expected {}, got{}".format(
-                    count, len(items)))
+                "Wrong arguments count: expected {}, got {}".format(
+                    len(types), len(items)))
+        items = [type_(item) for type_, item in zip(types, items)]
         return items
     return parser
 

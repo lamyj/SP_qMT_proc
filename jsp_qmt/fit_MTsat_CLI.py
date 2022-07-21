@@ -113,23 +113,23 @@ def setup(subparsers):
     parser.add_argument(
         "MTsat", help="Output MTsat NIfTI path")
     parser.add_argument(
-        "SEQparx", nargs="?", type=utils.tuple_argument(float, 3),
+        "SEQparx", nargs="?", type=utils.tuple_argument(3*[float]),
         help="Sequence parameters (comma-separated), in this order:\n"
             "\t1) MT preparation module duration (ms)\n"
             "\t2) Sequence TR (ms)\n"
             "\t3) Readout flip angle (deg)\n"
             "\te.g. 10.0,43.0,10.0")
     parser.add_argument(
-        "--MTsatB1sq", nargs="?",
+        "--MTsatB1sq", 
         help="Output MTsat image normalized by squared B1 NIfTI path")
     parser.add_argument(
-        "--B1", nargs="?", type=utils.image_argument, 
+        "--B1", type=utils.image_argument, 
         help="Input B1 map (in absolute unit) NIfTI path")
     parser.add_argument(
-        "--mask", nargs="?", type=utils.image_argument,
+        "--mask", type=utils.image_argument,
         help="Input binary mask NIfTI path")
     parser.add_argument(
-        "--xtol", nargs="?", type=float, default=1e-6,
+        "--xtol", type=float, default=1e-6,
         help="x tolerance for root finding (default: 1e-6)")
     utils.add_verbosity(parser)
     
