@@ -39,8 +39,8 @@ build_module(_MTsat "${header_files}" "${source_files}")
 
 set(
     header_files
-    jsp_qmt/brentq.h jsp_qmt/expm.h jsp_qmt/GSLFunction.h jsp_qmt/SPqMT.h
-    jsp_qmt/SPqMT.txx jsp_qmt/super_lorentzian.h)
+    jsp_qmt/brentq.h jsp_qmt/expm.h jsp_qmt/SPqMT.h jsp_qmt/SPqMT.txx
+    jsp_qmt/super_lorentzian.h)
 set(
     source_files
     jsp_qmt/_SPqMT.cpp jsp_qmt/expm.cpp jsp_qmt/SPqMT.cpp
