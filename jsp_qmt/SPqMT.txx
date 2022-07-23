@@ -13,10 +13,14 @@ namespace SPqMT
 {
 
 template<typename T>
-double cost(double F, T const & args)
+double
+Cost<T>
+::call(double F, void * data)
 {
     using Double2x2 = xt::xtensor_fixed<double, xt::xshape<2, 2>>;
     using Double2 = xt::xtensor_fixed<double, xt::xshape<2>>;
+    
+    T const & args = *reinterpret_cast<T*>(data);
     
     double Wb = args.unchecked(0), Wf = args.unchecked(1),
         FAro = args.unchecked(2), R1 = args.unchecked(3), R = args.unchecked(4),

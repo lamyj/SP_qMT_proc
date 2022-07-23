@@ -13,12 +13,8 @@ import time
 
 import nibabel
 import numpy
-import scipy.optimize
 
 from . import utils
-
-import pyximport
-pyximport.install(language_level=3)
 from . import _MTsat
 
 def main(args):

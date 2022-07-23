@@ -8,7 +8,10 @@ namespace SPqMT
 
 /// @brief Cost function for the SPqMT fit.
 template<typename T>
-double cost(double F, T const & args);
+struct Cost
+{
+    static double call(double delta, void * data);
+};
 
 /// @brief Fit the SPqMT model on a given data point.
 xt::xarray<double> fit(xt::xarray<double> data);
