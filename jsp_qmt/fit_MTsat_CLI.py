@@ -103,11 +103,11 @@ def setup(subparsers):
         description=description, formatter_class=argparse.RawTextHelpFormatter)
     
     parser.add_argument(
-        "MT", type=utils.image_argument, help="Input 4D (MT0/MTw) NIfTI path")
+        "MT", type=utils.image_stack_argument,
+        help="Input (MT0/MTw) NIfTI path, 4D file or comma-separated 3D files")
     parser.add_argument(
         "T1", type=utils.image_argument, help="Input T1 (in sec) NIfTI path")
-    parser.add_argument(
-        "MTsat", help="Output MTsat NIfTI path")
+    parser.add_argument("MTsat", help="Output MTsat NIfTI path")
     parser.add_argument(
         "SEQparx", nargs="?", type=utils.tuple_argument(3*[float]),
         help="Sequence parameters (comma-separated), in this order:\n"

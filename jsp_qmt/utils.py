@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 import nibabel
+import numpy
 
 def get_physCPU_number():
     """ Return the number of physical CPU cores.
@@ -59,6 +60,27 @@ def image_argument(value):
     else:
         return image
 
+def image_stack_argument(value):
+    images = [image_argument(x) for x in value.split(",")]
+    
+    shapes = [x.shape for x in images]
+    if not all(numpy.allclose(shapes[0], x) for x in shapes):
+        raise argparse.ArgumentTypeError(
+            "Shapes of {} do not match".format(value))
+            
+    affines = [x.affine for x in images]
+    if not all(numpy.allclose(affines[0], x) for x in affines):
+        raise argparse.ArgumentTypeError(
+            "Affine matrices of {} do not match".format(value))
+    
+    arrays = [numpy.array(x.dataobj) for x in images]
+    if not all(arrays[0].dtype == x.dtype for x in arrays):
+        raise argparse.ArgumentTypeError(
+            "dtypes of {} do not match".format(value))
+    
+    image = nibabel.Nifti1Image(numpy.stack(arrays, -1).squeeze(), affines[0])
+    return image
+    
 def add_verbosity(parser):
     """ Add verbosity argument to an argument parser
     """

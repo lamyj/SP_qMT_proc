@@ -199,7 +199,8 @@ def setup(subparsers):
         description=description, formatter_class=argparse.RawTextHelpFormatter)
     
     parser.add_argument(
-        "MT", type=utils.image_argument, help="Input 4D MT0/MTw NIfTI path")
+        "MT", type=utils.image_stack_argument,
+        help="Input (MT0/MTw) NIfTI path, 4D file or comma-separated 3D files")
     parser.add_argument(
         "T1", type=utils.image_argument, help="Input T1 NIfTI path")
     parser.add_argument("MPF", help="Output MPF NIfTI path")
