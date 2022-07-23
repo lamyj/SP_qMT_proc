@@ -60,19 +60,11 @@ def main(args):
             Tm*1e3, Ts*1e3, Tp*1e3, TR*1e3,
             RecoType, R1fT2f, T2r*1e6, R))
     
-    if any(x<0 for x in [FAsat, delta_f, FWHM, HannApo,FAro, Tm, Ts, Tp, TR]):
-            parser.error("All sequence parameters must be positive")
-    if any(x<0 for x in [R1fT2f, T2r, R]):
-            parser.error("All constrained MT model must should be positive")
-    
-    if args.B1 is None:
-        logging.warning("No B1 map provided (this is highly not recommended)")
-    
+    # Get MT data
     MT_data = args.MT.get_fdata()
     MT0_data = MT_data[..., 0]
     MTw_data = MT_data[..., 1]
     shape = args.MT.shape[:-1]
-    affine = args.MT.affine
     
     # Get T1 and optional B0 and B1 data
     T1_map = args.T1.get_fdata()
@@ -96,10 +88,10 @@ def main(args):
     else:
         fitted = _SPqMT.fit(data)
     
-    MPF_map = numpy.zeros(shape)
+    MPF_map = numpy.zeros_like(shape)
     MPF_map[mask] = fitted
     MPF_map = MPF_map / (1 + MPF_map)
-    MPF_image = nibabel.Nifti1Image(MPF_map, affine)
+    MPF_image = nibabel.Nifti1Image(MPF_map, args.MT.affine)
     nibabel.save(MPF_image, args.MPF)
 
 def prepare_fit_data(
@@ -225,7 +217,7 @@ def setup(subparsers):
             e.g. 560.0,4000.0,200.0,1,10.0"""))
     parser.add_argument(
         "--B1", type=utils.image_argument,
-        help="Input B1 map NIfTI path")
+        help="Input B1 map NIfTI path. Highly recommended")
     parser.add_argument(
         "--B0", type=utils.image_argument, 
         help="Input B0 map NIfTI path")

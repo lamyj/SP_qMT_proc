@@ -5,11 +5,9 @@
 # //////////////////////////////////////////////////////////////////////////////
 
 import argparse
-import collections
 import logging
 import sys
 import textwrap
-import time
 
 import nibabel
 import numpy
@@ -22,28 +20,15 @@ def main(args):
         level=args.verbosity.upper(),
         format="%(levelname)s - %(name)s: %(message)s")
     
-    # Create and check equence parameters
-    SEQparx_NT = collections.namedtuple("SEQparx_NT","TR1 TR FA")
-    SEQparx = SEQparx_NT(
-        TR1=args.SEQparx[0]*1e-3, TR=args.SEQparx[1]*1e-3,
-        FA=numpy.radians(args.SEQparx[2]))
-    
-    for value in SEQparx:
-        if value<0:
-            parser.error("All SEQparx values should be positive")
+    TR1, TR = [1e-3*x for x in args.SEQparx[:2]]
+    FA = numpy.radians(args.SEQparx[2])
     
     logging.info(textwrap.dedent("""\
         Summary of input sequence parameters:\n
         \tMT preparation module duration: {:.1f} ms
         \tSequence TR: {:.1f} ms
         \tReadout flip angle: {:.1f} deg
-        """).format(SEQparx.TR1*1e3, SEQparx.TR*1e3, numpy.degrees(SEQparx.FA)))
-    
-    # Check input data
-    if args.MT.ndim != 4:
-        parser.error("Volume {} is not 4D".format(args.MT.get_filename()))
-    if args.B1 is None:
-        logging.warning("No B1 map provided (this is highly not recommended)")
+        """).format(TR1*1e3, TR*1e3, numpy.degrees(FA)))
     
     # Get MT data
     MT_data = args.MT.get_fdata()
@@ -61,17 +46,14 @@ def main(args):
     
     # Estimation
     T1_data = T1_map[mask]
-    cosFA_RO = numpy.cos(SEQparx.FA * B1_map[mask])
-    E1 = numpy.exp(-SEQparx.TR1 / T1_data)
-    E2 = numpy.exp(-(SEQparx.TR-SEQparx.TR1) / T1_data)
+    cosFA_RO = numpy.cos(FA * B1_map[mask])
+    E1 = numpy.exp(-TR1 / T1_data)
+    E2 = numpy.exp(-(TR-TR1) / T1_data)
     Mz_MT0 = (1-E1*E2) / (1-E1*E2*cosFA_RO)
     signal_ratio = MTw_data[mask]/MT0_data[mask]
     data = numpy.stack((E1, E2, cosFA_RO, Mz_MT0, signal_ratio), axis=-1)
     
-    start_time = time.time()
     fitted = _MTsat.fit(data, args.xtol)
-    stop_time = time.time()
-    logging.debug("Done in {} seconds".format(stop_time - start_time))
     
     MTsat_map = numpy.zeros(shape)
     MTsat_map[mask] = fitted*100
@@ -90,10 +72,10 @@ def setup(subparsers):
         "Compute MT saturation map [1,2] from an MT-prepared SPGR experiment. "
             "Outputs are in percentage unit.\n"
         "References:\n"
-        "\t [1] G. Helms et al., High-resolution maps of magnetization "
+        "\t[1] G. Helms et al., High-resolution maps of magnetization "
             "transfer with inherent correction for RF inhomogeneity and T1 "
             "relaxation obtained from 3D FLASH MRI, MRM 2008;60:1396-1407\n"
-        "\t [2] G. Helms et al., Modeling the influence of TR and excitation "
+        "\t[2] G. Helms et al., Modeling the influence of TR and excitation "
             "flip angle on the magnetization transfer ratio (MTR) in human "
             "brain obtained from 3D spoiled gradient echo MRI. "
             "MRM 2010;64:177-185")
@@ -120,7 +102,7 @@ def setup(subparsers):
         help="Output MTsat image normalized by squared B1 NIfTI path")
     parser.add_argument(
         "--B1", type=utils.image_argument, 
-        help="Input B1 map (in absolute unit) NIfTI path")
+        help="Input B1 map (in absolute unit) NIfTI path. Highly recommended")
     parser.add_argument(
         "--mask", type=utils.image_argument,
         help="Input binary mask NIfTI path")
