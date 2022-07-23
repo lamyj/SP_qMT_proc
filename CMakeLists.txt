@@ -14,7 +14,7 @@ if(WIN32)
     add_definitions(-D_USE_MATH_DEFINES)
 endif()
 
-find_package(gsl REQUIRED)
+find_package(GSL REQUIRED)
 find_package(pybind11 REQUIRED)
 find_package(xtensor REQUIRED)
 find_package(xtensor-blas REQUIRED)

@@ -1,0 +1,61 @@
+on: push
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    name: ${{ matrix.container || matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: "ubuntu-latest", container: "debian:bullseye" }
+          - { os: "ubuntu-latest", container: "ubuntu:jammy" }
+          # - { os: "macos-latest" }
+          # - { os: "windows-latest" }
+    env:
+      WORKSPACE: "${{ github.workspace }}"
+    steps:
+      - name: Provision (Debian, Ubuntu)
+        # Install Git and Conda. macOS and Windows workers already have this,
+        # however for Linux we are running in minimal containers.
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git
+          curl -LOJ https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+          bash ./Miniconda3-latest-Linux-x86_64.sh -b -p /usr/local/conda
+          echo '/usr/local/conda/bin' >> ${GITHUB_PATH}
+        if: ${{ contains(matrix.container, 'debian') || contains(matrix.container, 'ubuntu') }}
+      
+      - name: Provision (Windows)
+        # Initialize the Conda environment by default
+        run: C:\Miniconda\condabin\conda.bat init powershell
+        if: ${{ contains(matrix.os, 'windows') }}
+      
+      - name: Setup conda
+        run: |
+          conda create -n worker -y
+      
+      - name: Checkout latest revision
+        # Only the latest revision is required, as later steps do not depend on
+        # tags.
+        # NOTE: directory may not be emtpy, cannot call git clone directly
+        run: |
+          git clone --depth=1 https://github.com/lamyj/SP_qMT_proc.git
+          mv SP_qMT_proc/* SP_qMT_proc/.ci SP_qMT_proc/.???* ./
+          rmdir SP_qMT_proc
+      
+      - name: Set-up
+        run: |
+          activate worker
+          python3 .ci/build/conda.py
+      
+      - name: Build
+        run: |
+          activate worker
+          python3 ./.ci/build/build.py
+      
+      - name: Run tests
+        run: |
+          activate worker
+          python3 ./.ci/build/post_build.py
