@@ -24,28 +24,22 @@ execute_process(
     COMMAND ${PYTHON_EXECUTABLE} -c "import numpy; print(numpy.get_include())"
     OUTPUT_VARIABLE NUMPY_INCLUDE_DIRS
     OUTPUT_STRIP_TRAILING_WHITESPACE)
-function(build_module module header_files source_files)
-    pybind11_add_module(${module} SHARED ${source_files} ${header_files})
-    target_include_directories(
-        ${module} PRIVATE
-        ${CMAKE_SOURCE_DIR}/src ${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIRS})
-    target_link_libraries(
-        ${module} PUBLIC GSL::gsl xtensor xtensor-blas xtensor-python)
-endfunction()
-
-set(header_files jsp_qmt/brentq.h)
-set(source_files jsp_qmt/_MTsat.cpp)
-build_module(_MTsat "${header_files}" "${source_files}")
 
 set(
     header_files
-    jsp_qmt/brentq.h jsp_qmt/expm.h jsp_qmt/SPqMT.h jsp_qmt/SPqMT.txx
-    jsp_qmt/super_lorentzian.h)
+    jsp_qmt/brentq.h jsp_qmt/expm.h jsp_qmt/MTsat.h jsp_qmt/MTsat.txx
+    jsp_qmt/SPqMT.h jsp_qmt/SPqMT.txx jsp_qmt/super_lorentzian.h)
 set(
     source_files
-    jsp_qmt/_SPqMT.cpp jsp_qmt/expm.cpp jsp_qmt/SPqMT.cpp
+    jsp_qmt/_jsp_qmt.cpp jsp_qmt/expm.cpp
     jsp_qmt/super_lorentzian.cpp)
-build_module(_SPqMT "${header_files}" "${source_files}")
+
+pybind11_add_module(_jsp_qmt SHARED ${source_files} ${header_files})
+target_include_directories(
+    _jsp_qmt PRIVATE
+    ${CMAKE_SOURCE_DIR}/src ${PYTHON_INCLUDE_DIRS} ${NUMPY_INCLUDE_DIRS})
+target_link_libraries(
+    _jsp_qmt PUBLIC GSL::gsl xtensor xtensor-blas xtensor-python)
 
 file(GLOB_RECURSE python_files "jsp_qmt/*.py")
 list(SORT python_files)
@@ -60,7 +54,7 @@ execute_process(
 
 install(DIRECTORY DESTINATION "${PYTHON_SITE_PACKAGES}")
 install(
-    TARGETS _MTsat _SPqMT
+    TARGETS _jsp_qmt
     DESTINATION "${PYTHON_SITE_PACKAGES}/${CMAKE_PROJECT_NAME}")
 install(
     FILES ${python_files}

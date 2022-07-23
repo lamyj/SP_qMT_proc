@@ -13,7 +13,7 @@ import nibabel
 import numpy
 
 from . import utils
-from . import _MTsat
+from . import _jsp_qmt
 
 def main(args):
     logging.basicConfig(
@@ -53,7 +53,7 @@ def main(args):
     signal_ratio = MTw_data[mask]/MT0_data[mask]
     data = numpy.stack((E1, E2, cosFA_RO, Mz_MT0, signal_ratio), axis=-1)
     
-    fitted = _MTsat.fit(data, args.xtol)
+    fitted = _jsp_qmt.mtsat.fit(data, args.xtol)
     
     MTsat_map = numpy.zeros(shape)
     MTsat_map[mask] = fitted*100

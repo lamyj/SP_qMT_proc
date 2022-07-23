@@ -13,9 +13,6 @@ struct Cost
     static double call(double delta, void * data);
 };
 
-/// @brief Fit the SPqMT model on a given data point.
-xt::xarray<double> fit(xt::xarray<double> data);
-
 }
 
 #include "SPqMT.txx"

@@ -14,7 +14,7 @@ import nibabel
 import scipy.integrate
 
 from . import utils
-from . import _SPqMT
+from . import _jsp_qmt
 
 gamma = 267.513 * 1e6 # rad/s/T
 
@@ -64,7 +64,7 @@ def main(args):
     MT_data = args.MT.get_fdata()
     MT0_data = MT_data[..., 0]
     MTw_data = MT_data[..., 1]
-    shape = args.MT.shape[:-1]
+    shape = MT0_data.shape
     
     # Get T1 and optional B0 and B1 data
     T1_map = args.T1.get_fdata()
@@ -86,9 +86,9 @@ def main(args):
             fitted = pool.map(fit, numpy.array_split(data, 10*args.nworkers))
         fitted = numpy.concatenate(fitted)
     else:
-        fitted = _SPqMT.fit(data)
+        fitted = _jsp_qmt.spqmt.fit(data)
     
-    MPF_map = numpy.zeros_like(shape)
+    MPF_map = numpy.zeros(shape)
     MPF_map[mask] = fitted
     MPF_map = MPF_map / (1 + MPF_map)
     MPF_image = nibabel.Nifti1Image(MPF_map, args.MT.affine)
@@ -107,9 +107,9 @@ def prepare_fit_data(
     # G(delta_f)
     if any(B0 != 0.0): # different G for voxels
         delta_f_corr = delta_f + B0
-        G = _SPqMT.super_lorentzian(T2r, delta_f_corr)
+        G = _jsp_qmt.super_lorentzian(T2r, delta_f_corr)
     else: # same G for all voxels
-        G = _SPqMT.super_lorentzian(T2r, delta_f)
+        G = _jsp_qmt.super_lorentzian(T2r, delta_f)
     
     Wb = (numpy.pi * w1RMS_nom**2 * G) * B1**2
 
@@ -150,7 +150,7 @@ def fit(data):
     """ Entry point for multi-processing fit. This is required, since _SPqMT.fit
         is not picklable.
     """ 
-    return _SPqMT.fit(data)
+    return _jsp_qmt.spqmt.fit(data)
 
 def setup(subparsers):
     description = (
