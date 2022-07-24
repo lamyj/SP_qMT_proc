@@ -11,7 +11,7 @@ jobs:
         include:
           - { os: "ubuntu-latest", container: "debian:bullseye" }
           - { os: "ubuntu-latest", container: "ubuntu:jammy" }
-          # - { os: "macos-latest" }
+          - { os: "macos-latest" }
           # - { os: "windows-latest" }
     env:
       WORKSPACE: "${{ github.workspace }}"
@@ -27,6 +27,10 @@ jobs:
           echo '/usr/local/conda/bin' >> ${GITHUB_PATH}
         if: ${{ contains(matrix.container, 'debian') || contains(matrix.container, 'ubuntu') }}
       
+      - name: Provision (macOS)
+        run: echo ${CONDA}/bin >> ${GITHUB_PATH}
+        if: ${{ contains(matrix.os, 'macos') }}
+      
       - name: Provision (Windows)
         # Initialize the Conda environment by default
         run: C:\Miniconda\condabin\conda.bat init powershell
@@ -41,7 +45,7 @@ jobs:
         # tags.
         # NOTE: directory may not be emtpy, cannot call git clone directly
         run: |
-          git clone --depth=1 https://github.com/lamyj/SP_qMT_proc.git
+          git clone --depth=1 -b ${GITHUB_REF##*/} https://github.com/lamyj/SP_qMT_proc.git
           mv SP_qMT_proc/* SP_qMT_proc/.ci SP_qMT_proc/.???* ./
           rmdir SP_qMT_proc
       
