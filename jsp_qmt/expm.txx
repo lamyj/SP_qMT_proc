@@ -1,19 +1,21 @@
+#ifndef _c7e42f6f_c110_43e2_8076_f7ae3e40af0f
+#define _c7e42f6f_c110_43e2_8076_f7ae3e40af0f
+
 #include "expm.h"
 
 #include <cmath>
-#include <xtensor/xfixed.hpp>
+#include <xtensor/xbuilder.hpp>
 
-xt::xtensor_fixed<double, xt::xshape<2, 2>>
-expm_2_2(xt::xtensor_fixed<double, xt::xshape<2, 2>> const & A)
+template<typename T>
+auto expm_2_2(T const & A)
 {
     auto const Delta = 
         std::pow(A.unchecked(0, 0)-A.unchecked(1, 1), 2)
         + 4*A.unchecked(0, 1)*A.unchecked(1, 0);
     
-    xt::xtensor_fixed<double, xt::xshape<2, 2>> result(A.shape());
+    auto result = xt::empty<typename T::value_type>(A.shape());
     
-    static xt::xtensor_fixed<double, xt::xshape<2, 2>> const I =
-        {{1., 0.}, {0., 1.}};
+    static auto const I = xt::eye<typename T::value_type>({2, 2}, 0);
     
     // The Cayley-Hamilton theorem states that every square matrix satisfies its
     // own characteristic polynomial.
@@ -131,3 +133,5 @@ expm_2_2(xt::xtensor_fixed<double, xt::xshape<2, 2>> const & A)
     
     return result;
 }
+
+#endif // _c7e42f6f_c110_43e2_8076_f7ae3e40af0f

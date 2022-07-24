@@ -12,7 +12,7 @@ PYBIND11_MODULE(_jsp_qmt, m)
 {
     xt::import_numpy();
     
-    m.def("expm_2_2", expm_2_2);
+    m.def("expm_2_2", expm_2_2<xt::pyarray<double>>);
     m.def(
         "super_lorentzian",
         pybind11::overload_cast<double, double>(super_lorentzian));

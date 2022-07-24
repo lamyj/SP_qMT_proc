@@ -29,10 +29,7 @@ set(
     header_files
     jsp_qmt/brentq.h jsp_qmt/expm.h jsp_qmt/MTsat.h jsp_qmt/MTsat.txx
     jsp_qmt/SPqMT.h jsp_qmt/SPqMT.txx jsp_qmt/super_lorentzian.h)
-set(
-    source_files
-    jsp_qmt/_jsp_qmt.cpp jsp_qmt/expm.cpp
-    jsp_qmt/super_lorentzian.cpp)
+set(source_files jsp_qmt/_jsp_qmt.cpp jsp_qmt/super_lorentzian.cpp)
 
 pybind11_add_module(_jsp_qmt SHARED ${source_files} ${header_files})
 target_include_directories(
