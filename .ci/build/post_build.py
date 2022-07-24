@@ -14,8 +14,6 @@ python_lib_dir = os.path.join(
     install_dir, distutils.sysconfig.get_python_lib(True, prefix=""))
 python_tests_dir = os.path.join(workspace, "tests")
 
-print(lib_dir, python_lib_dir, python_tests_dir)
-
 # Set-up environment: C++ library, Python module and test data location.
 for name in ["DYLD_LIBRARY_PATH", "LD_LIBRARY_PATH"]:
     os.environ[name] = os.pathsep.join([
