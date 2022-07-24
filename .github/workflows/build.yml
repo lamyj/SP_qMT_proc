@@ -1,5 +1,9 @@
 on: push
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -12,11 +16,11 @@ jobs:
           - { os: "ubuntu-latest", container: "debian:bullseye" }
           - { os: "ubuntu-latest", container: "ubuntu:jammy" }
           - { os: "macos-latest" }
-          # - { os: "windows-latest" }
+          - { os: "windows-latest" }
     env:
       WORKSPACE: "${{ github.workspace }}"
     steps:
-      - name: Provision (Debian, Ubuntu)
+      - name: Provision
         # Install Git and Conda. macOS and Windows workers already have this,
         # however for Linux we are running in minimal containers.
         run: |
@@ -25,41 +29,46 @@ jobs:
           curl -LOJ https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
           bash ./Miniconda3-latest-Linux-x86_64.sh -b -p /usr/local/conda
           echo '/usr/local/conda/bin' >> ${GITHUB_PATH}
+          echo 'CONDA=/usr/local/conda' >> ${GITHUB_ENV}
         if: ${{ contains(matrix.container, 'debian') || contains(matrix.container, 'ubuntu') }}
       
-      - name: Provision (macOS)
+      - name: Provision
         run: echo ${CONDA}/bin >> ${GITHUB_PATH}
         if: ${{ contains(matrix.os, 'macos') }}
       
-      - name: Provision (Windows)
-        # Initialize the Conda environment by default
-        run: C:\Miniconda\condabin\conda.bat init powershell
+      - name: Provision
+        run: |
+          echo ${CONDA} >> ${GITHUB_PATH}
+          echo ${CONDA}/Scripts >> ${GITHUB_PATH}
+          echo ${CONDA}/Library/bin >> ${GITHUB_PATH}
         if: ${{ contains(matrix.os, 'windows') }}
       
-      - name: Setup conda
-        run: |
-          conda create -n worker -y
+      - name: Create Conda environment
+        run: conda create -n worker -y
       
       - name: Checkout latest revision
         # Only the latest revision is required, as later steps do not depend on
         # tags.
         # NOTE: directory may not be emtpy, cannot call git clone directly
         run: |
-          git clone --depth=1 -b ${GITHUB_REF##*/} https://github.com/lamyj/SP_qMT_proc.git
-          mv SP_qMT_proc/* SP_qMT_proc/.ci SP_qMT_proc/.???* ./
-          rmdir SP_qMT_proc
+          git config --global init.defaultBranch master
+          git config --global --add safe.directory '*'
+          git init .
+          git remote add origin ${{ github.server_url }}/${{ github.repository }}
+          git fetch origin --depth=1 ${{ github.ref }}
+          git checkout ${{ github.ref_name }}
       
       - name: Set-up
         run: |
           activate worker
-          python3 .ci/build/conda.py
+          python .ci/build/conda.py
       
       - name: Build
         run: |
           activate worker
-          python3 ./.ci/build/build.py
+          python .ci/build/build.py
       
       - name: Run tests
         run: |
           activate worker
-          python3 ./.ci/build/post_build.py
+          python .ci/build/post_build.py
