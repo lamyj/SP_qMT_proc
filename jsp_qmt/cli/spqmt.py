@@ -1,8 +1,3 @@
-# //////////////////////////////////////////////////////////////////////////////
-# // L. SOUSTELLE, PhD, Aix Marseille Univ, CNRS, CRMBM, Marseille, France
-# // Contact: lucas.soustelle@univ-amu.fr
-# //////////////////////////////////////////////////////////////////////////////
-
 import argparse
 import logging
 import multiprocessing
@@ -13,7 +8,7 @@ import numpy
 import nibabel
 import scipy.integrate
 
-from . import get_pulse_average_and_rms, super_lorentzian, spqmt, utils
+from .. import get_pulse_average_and_rms, super_lorentzian, spqmt, utils
 
 gamma = 267.513 * 1e6 # rad/s/T
 

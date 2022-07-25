@@ -40,6 +40,8 @@ target_link_libraries(
 
 file(GLOB_RECURSE python_files "jsp_qmt/*.py")
 list(SORT python_files)
+add_custom_target(
+    PythonFiles ${CMAKE_COMMAND} -E echo "Python files" SOURCES ${python_files})
 
 execute_process(
     COMMAND ${PYTHON_EXECUTABLE}
@@ -54,5 +56,7 @@ install(
     TARGETS _jsp_qmt
     DESTINATION "${PYTHON_SITE_PACKAGES}/${CMAKE_PROJECT_NAME}")
 install(
-    FILES ${python_files}
-    DESTINATION "${PYTHON_SITE_PACKAGES}/${CMAKE_PROJECT_NAME}")
+    DIRECTORY jsp_qmt
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/${PYTHON_SITE_PACKAGES}
+    FILES_MATCHING PATTERN *.py
+)

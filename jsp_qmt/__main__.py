@@ -2,14 +2,14 @@ import argparse
 import logging
 import sys
 
-from . import fit_MTsat_CLI, fit_SPqMT_CLI
+from . import cli
 
 def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help="Available commands")
     command_parsers = {}
     for name in ["MTsat", "SPqMT"]:
-        module = globals()["fit_{}_CLI".format(name)]
+        module = getattr(cli, name.lower())
         subparser = module.setup(subparsers)
         subparser.set_defaults(action=module.main)
         command_parsers[module.main] = subparser

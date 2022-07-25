@@ -1,9 +1,3 @@
-# //////////////////////////////////////////////////////////////////////////////
-# // L. SOUSTELLE, PhD, Aix Marseille Univ, CNRS, CRMBM, Marseille, France
-# // 2021/02/06
-# // Contact: lucas.soustelle@univ-amu.fr
-# //////////////////////////////////////////////////////////////////////////////
-
 import argparse
 import logging
 import sys
@@ -12,7 +6,7 @@ import textwrap
 import nibabel
 import numpy
 
-from . import mtsat, utils
+from .. import mtsat, utils
 
 def main(args):
     logging.basicConfig(
