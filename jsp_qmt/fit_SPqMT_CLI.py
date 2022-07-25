@@ -13,8 +13,7 @@ import numpy
 import nibabel
 import scipy.integrate
 
-from . import utils
-from . import _jsp_qmt
+from . import super_lorentzian, spqmt, utils
 
 gamma = 267.513 * 1e6 # rad/s/T
 
@@ -86,7 +85,7 @@ def main(args):
             fitted = pool.map(fit, numpy.array_split(data, 10*args.nworkers))
         fitted = numpy.concatenate(fitted)
     else:
-        fitted = _jsp_qmt.spqmt.fit(data)
+        fitted = spqmt.fit(data)
     
     MPF_map = numpy.zeros(shape)
     MPF_map[mask] = fitted
@@ -107,9 +106,9 @@ def prepare_fit_data(
     # G(delta_f)
     if any(B0 != 0.0): # different G for voxels
         delta_f_corr = delta_f + B0
-        G = _jsp_qmt.super_lorentzian(T2r, delta_f_corr)
+        G = super_lorentzian(T2r, delta_f_corr)
     else: # same G for all voxels
-        G = _jsp_qmt.super_lorentzian(T2r, delta_f)
+        G = super_lorentzian(T2r, delta_f)
     
     Wb = (numpy.pi * w1RMS_nom**2 * G) * B1**2
 
@@ -150,7 +149,7 @@ def fit(data):
     """ Entry point for multi-processing fit. This is required, since _SPqMT.fit
         is not picklable.
     """ 
-    return _jsp_qmt.spqmt.fit(data)
+    return spqmt.fit(data)
 
 def setup(subparsers):
     description = (
