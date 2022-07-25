@@ -9,14 +9,19 @@
 thread_local gsl_integration_workspace * workspace =
     gsl_integration_workspace_alloc(1000);
 
+double super_lorentzian_integrand(double x, double T2r, double delta_f)
+{
+    return 
+        T2r/std::fabs((3*std::pow(x, 2)-1))
+        * std::exp(-2*std::pow(2*M_PI*delta_f*T2r / (3*std::pow(x, 2)-1), 2));
+};
+
 double
 super_lorentzian_integrand(double x, void * data)
 {
     auto & args = *reinterpret_cast<std::pair<double, double> *>(data);
     auto & [T2r, delta_f] = args;
-    return 
-        T2r/std::fabs((3*std::pow(x, 2)-1))
-        * std::exp(-2*std::pow(2*M_PI*delta_f*T2r / (3*std::pow(x, 2)-1), 2));
+    return super_lorentzian_integrand(x, T2r, delta_f);
 };
 
 double super_lorentzian(double T2r, double delta_f)

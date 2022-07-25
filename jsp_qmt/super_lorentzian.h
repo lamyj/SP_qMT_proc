@@ -5,7 +5,7 @@
 #include <xtensor/xarray.hpp>
 
 double
-super_lorentzian_integrand(double x, std::pair<double, double> const & params);
+super_lorentzian_integrand(double x, double T2r, double delta_f);
 
 double super_lorentzian(double T2r, double delta_f);
 
