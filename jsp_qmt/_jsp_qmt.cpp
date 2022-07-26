@@ -2,12 +2,12 @@
 #define FORCE_IMPORT_ARRAY
 #include <xtensor-python/pyarray.hpp>
 
-#include "brentq.h"
 #include "expm.h"
-#include "MTsat.h"
-#include "SPqMT.h"
 #include "super_lorentzian.h"
 #include "VFA.h"
+
+void wrap_mtsat(pybind11::module &);
+void wrap_spqmt(pybind11::module &);
 
 PYBIND11_MODULE(_jsp_qmt, m)
 {
@@ -25,21 +25,10 @@ PYBIND11_MODULE(_jsp_qmt, m)
         pybind11::overload_cast<double, xt::xarray<double> const &>(
             super_lorentzian));
     
-    auto mtsat = m.def_submodule("mtsat");
-    mtsat.def(
-        "fit",
-        [](xt::xarray<double> const & data, double epsabs) {
-            return brentq<MTsat::Cost, decltype(data)>(
-                data, 0., 0.3, 100, epsabs, 1e-15); });
-    
-    auto spqmt = m.def_submodule("spqmt");
-    spqmt.def(
-        "fit",
-        [](xt::xarray<double> const & data) {
-            return brentq<SPqMT::Cost, decltype(data)>(
-                data, 0., 0.3, 100, 1e-5, 1e-15); });
     
     auto vfa = m.def_submodule("vfa");
     auto linear_fit_py = VFA::linear_fit<xt::pyarray<double>>;
     vfa.def("linear_fit", linear_fit_py);
+    wrap_mtsat(m);
+    wrap_spqmt(m);
 }
