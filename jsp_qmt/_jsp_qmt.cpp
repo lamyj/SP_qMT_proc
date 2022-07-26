@@ -4,10 +4,10 @@
 
 #include "expm.h"
 #include "super_lorentzian.h"
-#include "VFA.h"
 
 void wrap_mtsat(pybind11::module &);
 void wrap_spqmt(pybind11::module &);
+void wrap_vfa(pybind11::module &);
 
 PYBIND11_MODULE(_jsp_qmt, m)
 {
@@ -25,10 +25,7 @@ PYBIND11_MODULE(_jsp_qmt, m)
         pybind11::overload_cast<double, xt::xarray<double> const &>(
             super_lorentzian));
     
-    
-    auto vfa = m.def_submodule("vfa");
-    auto linear_fit_py = VFA::linear_fit<xt::pyarray<double>>;
-    vfa.def("linear_fit", linear_fit_py);
     wrap_mtsat(m);
     wrap_spqmt(m);
+    wrap_vfa(m);
 }
