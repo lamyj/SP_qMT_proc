@@ -8,7 +8,7 @@ def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help="Available commands")
     command_parsers = {}
-    for name in ["MTsat", "SPqMT"]:
+    for name in ["MTsat", "SPqMT", "VFA"]:
         module = getattr(cli, name.lower())
         subparser = module.setup(subparsers)
         subparser.set_defaults(action=module.main)

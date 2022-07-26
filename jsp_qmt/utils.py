@@ -42,11 +42,15 @@ def get_physCPU_number():
 def tuple_argument(types):
     def parser(value):
         items = value.split(",")
-        if len(items) != len(types):
-            raise argparse.ArgumentTypeError(
-                "Wrong arguments count: expected {}, got {}".format(
-                    len(types), len(items)))
-        items = [type_(item) for type_, item in zip(types, items)]
+        if isinstance(types, (list, tuple)):
+            if len(items) != len(types):
+                raise argparse.ArgumentTypeError(
+                    "Wrong arguments count: expected {}, got {}".format(
+                        len(types), len(items)))
+            items = [type_(item) for type_, item in zip(types, items)]
+        else:
+            type_ = types
+            items = [type_(item) for item in items]
         return items
     return parser
 
