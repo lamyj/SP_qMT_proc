@@ -7,6 +7,7 @@
 #include "MTsat.h"
 #include "SPqMT.h"
 #include "super_lorentzian.h"
+#include "VFA.h"
 
 PYBIND11_MODULE(_jsp_qmt, m)
 {
@@ -37,4 +38,8 @@ PYBIND11_MODULE(_jsp_qmt, m)
         [](xt::xarray<double> const & data) {
             return brentq<SPqMT::Cost, decltype(data)>(
                 data, 0., 0.3, 100, 1e-5, 1e-15); });
+    
+    auto vfa = m.def_submodule("vfa");
+    auto linear_fit_py = VFA::linear_fit<xt::pyarray<double>>;
+    vfa.def("linear_fit", linear_fit_py);
 }

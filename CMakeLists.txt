@@ -25,11 +25,11 @@ execute_process(
     OUTPUT_VARIABLE NUMPY_INCLUDE_DIRS
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-set(
-    header_files
-    jsp_qmt/brentq.h jsp_qmt/expm.h jsp_qmt/MTsat.h jsp_qmt/MTsat.txx
-    jsp_qmt/SPqMT.h jsp_qmt/SPqMT.txx jsp_qmt/super_lorentzian.h)
-set(source_files jsp_qmt/_jsp_qmt.cpp jsp_qmt/super_lorentzian.cpp)
+file(GLOB_RECURSE header_files "jsp_qmt/*.h", "jsp_qmt/*.txx")
+list(SORT header_files)
+
+file(GLOB_RECURSE source_files "jsp_qmt/*.cpp")
+list(SORT source_files)
 
 pybind11_add_module(_jsp_qmt SHARED ${source_files} ${header_files})
 target_include_directories(
