@@ -71,7 +71,7 @@ auto linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
 template<typename Data>
 int signal(gsl_vector const * x, void * data, gsl_vector * f)
 {
-    auto [alpha, S, n] = *reinterpret_cast<Data *>(data);
+    auto const & [alpha, S, n] = *reinterpret_cast<Data *>(data);
     auto const S0 = gsl_vector_get(x, 0);
     auto const E1 = gsl_vector_get(x, 1);
     
@@ -88,7 +88,7 @@ int signal(gsl_vector const * x, void * data, gsl_vector * f)
 template<typename Data>
 int jacobian(gsl_vector const * x, void * data, gsl_matrix * J)
 {
-    auto [alpha, S, n] = *reinterpret_cast<Data *>(data);
+    auto const & [alpha, S, n] = *reinterpret_cast<Data *>(data);
     auto const S0 = gsl_vector_get(x, 0);
     auto const E1 = gsl_vector_get(x, 1);
     
@@ -114,10 +114,9 @@ auto non_linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
     //        = S0 (sin α ((1-E1) cos α - 1 + E1 cos α) ) / ((1 - E1 cos α)²)
     //        = S0 (sin α (cos α - 1)) / ((1 - E1 cos α)²)
     
-    auto fit = gsl_multifit_nlinear_trust;
     auto fit_parameters = gsl_multifit_nlinear_default_parameters();
     auto workspace = gsl_multifit_nlinear_alloc(
-        fit, &fit_parameters, FA.shape()[1], 2);
+        gsl_multifit_nlinear_trust, &fit_parameters, FA.shape()[1], 2);
     auto old_handler = gsl_set_error_handler_off();
     
     gsl_multifit_nlinear_fdf system;
@@ -143,10 +142,10 @@ auto non_linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
         
         gsl_vector_set(guess, 0, *S0_it);
         gsl_vector_set(guess, 1, *E1_it);
-        gsl_multifit_nlinear_winit(guess, NULL, &system, workspace);
+        gsl_multifit_nlinear_winit(guess, nullptr, &system, workspace);
         int info;
-        auto status = gsl_multifit_nlinear_driver(
-            1000, xtol, gtol, ftol, NULL, NULL, &info, workspace);
+        auto const status = gsl_multifit_nlinear_driver(
+            1000, xtol, gtol, ftol, nullptr, nullptr, &info, workspace);
         if(status == GSL_SUCCESS)
         {
             *S0_it = gsl_vector_get(workspace->x, 0);
