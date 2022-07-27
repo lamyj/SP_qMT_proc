@@ -109,7 +109,7 @@ def setup(subparsers):
         help="Fitting type\n"
             "\tNLS: Nonlinear Least-Square (default for > 2 points VFA)\n"
             "\tLLS: Linear Least-Square (default to 2 points VFA)")
-    parser.add_argument("--nworkers", nargs="?", type=int, default=1)
+    parser.add_argument("--nworkers", type=int, default=1)
     utils.add_verbosity(parser)
     
     return parser

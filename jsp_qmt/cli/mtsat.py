@@ -84,7 +84,7 @@ def setup(subparsers):
         "T1", type=utils.image_argument, help="Input T1 (in sec) NIfTI path")
     parser.add_argument("MTsat", help="Output MTsat NIfTI path")
     parser.add_argument(
-        "SEQparx", nargs="?", type=utils.tuple_argument(3*[float]),
+        "SEQparx", type=utils.tuple_argument(3*[float]),
         help="Sequence parameters (comma-separated), in this order:\n"
             "\t1) MT preparation module duration (ms)\n"
             "\t2) Sequence TR (ms)\n"

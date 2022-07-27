@@ -212,7 +212,7 @@ def setup(subparsers):
             "\t2) T2r (s)\n"
             "\t3) R (s^-1)\n"
             "e.g. 0.022,10.0e-6,19")
-    parser.add_argument("--nworkers", nargs="?", type=int, default=1)
+    parser.add_argument("--nworkers", type=int, default=1)
     utils.add_verbosity(parser)
     
     return parser
