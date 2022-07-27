@@ -77,8 +77,8 @@ int signal(gsl_vector const * x, void * data, gsl_vector * f)
     
     for(std::size_t i=0; i<n; ++i)
     {
-        auto const cos_a = std::cos((*alpha)(i));
-        auto const sin_a = std::sin((*alpha)(i));
+        auto const cos_a = std::cos(alpha(i));
+        auto const sin_a = std::sin(alpha(i));
         auto const Si = S0*((1-E1)*sin_a)/(1-E1*cos_a);
         gsl_vector_set(f, i, Si - (*S)(i));
     }
@@ -91,11 +91,11 @@ int jacobian(gsl_vector const * x, void * data, gsl_matrix * J)
     auto [alpha, S, n] = *reinterpret_cast<Data *>(data);
     auto const S0 = gsl_vector_get(x, 0);
     auto const E1 = gsl_vector_get(x, 1);
-
+    
     for(std::size_t i=0; i<n; ++i)
     {
-        auto const cos_a = std::cos((*alpha)(i));
-        auto const sin_a = std::sin((*alpha)(i));
+        auto const cos_a = std::cos(alpha(i));
+        auto const sin_a = std::sin(alpha(i));
         auto const df_dS0 = ((1-E1)*sin_a) / (1 - E1*cos_a);
         auto const df_dE1 = S0*(sin_a*(cos_a-1)) / std::pow(1 - E1*cos_a, 2);
         gsl_matrix_set(J, i, 0, df_dS0);
@@ -135,9 +135,8 @@ auto non_linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
     auto E1_it = E1.begin(), S0_it = S0.begin();
     auto guess = gsl_vector_alloc(2);
     
-    auto FA_it = xt::axis_begin(FA), FA_end = xt::axis_end(FA);
     auto VFA_it = xt::axis_begin(VFA);
-    while(FA_it != FA_end)
+    while(VFA_it != VFA_end)
     {
         Data params(FA_it, VFA_it, FA.shape()[1]);
         system.params = &params;
@@ -161,7 +160,6 @@ auto non_linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
         
         ++E1_it;
         ++S0_it;
-        ++FA_it;
         ++VFA_it;
     }
     
