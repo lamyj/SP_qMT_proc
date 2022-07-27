@@ -5,6 +5,7 @@
 #include <utility>
 
 #include <gsl/gsl_errno.h>
+#include <gsl/gsl_fit.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_multifit_nlinear.h>
@@ -24,32 +25,45 @@ namespace VFA
 template<typename T>
 auto linear_fit_E1(T && FA, T && VFA)
 {
-    // NOTE: xt::eval is not lazy
-    auto X = xt::eval(VFA / xt::tan(FA));
-    auto Y = xt::eval(VFA / xt::sin(FA));
-    
     // We are solving Y = scaled_S0 + E1*X, where scaled_S0 = S0*(1-E1)
     // This yields E1 = (y2-y1)/(x2-x1) and scaled_S0=(x2*y1-x1*y2)/(x2-x1)
     // NOTE: if x1==x2, the system is singular
     
-    auto denominator = xt::squeeze(xt::diff(X));
+    auto const X = xt::eval(VFA / xt::tan(FA));
+    auto const Y = xt::eval(VFA / xt::sin(FA));
     
-    auto E1 = xt::squeeze(xt::diff(Y))/denominator;
+    typename std::decay_t<T>::shape_type const shape(
+        VFA.shape().begin(), VFA.shape().end()-1);
+    auto E1 = xt::empty<typename std::decay_t<T>::value_type>(shape);
+    auto S0 = xt::empty<typename std::decay_t<T>::value_type>(shape);
     
-    auto scaled_S0 = 
-        (
-            xt::view(X, xt::all(), 1) * xt::view(Y, xt::all(), 0)
-            - xt::view(X, xt::all(), 0) * xt::view(Y, xt::all(), 1))
-        /denominator;
-    auto S0 = scaled_S0/(1-E1);
+    auto X_it = xt::axis_begin(X), Y_it = xt::axis_begin(Y);
+    auto const X_end = xt::axis_end(X);
+    auto E1_it = xt::axis_begin(E1), S0_it = xt::axis_begin(S0);
     
-    return std::make_pair(xt::eval(E1), xt::eval(S0));
+    auto const X_stride = X_it->strides()[0];
+    auto const Y_stride = Y_it->strides()[0];
+    auto const size = FA.shape(1);
+    while(X_it != X_end)
+    {
+        double cov00, cov01, cov11, sumsq;
+        auto const status = gsl_fit_linear(
+            &(*X_it)(0), X_stride, &(*Y_it)(0), Y_stride, size,
+            &(*S0_it)(0), &(*E1_it)(0), &cov00, &cov01, &cov11, &sumsq);
+        
+        ++X_it; ++Y_it;
+        ++E1_it; ++S0_it;
+    }
+    
+    S0 /= (1-E1);
+    
+    return std::make_pair(E1, S0);
 }
 
 template<typename T>
 auto linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
 {
-    auto [E1, S0] = linear_fit_E1(FA, VFA);
+    auto const [E1, S0] = linear_fit_E1(FA, VFA);
     auto T1 = -TR/xt::log(E1);
     return std::make_pair(xt::eval(T1), S0);
 }
