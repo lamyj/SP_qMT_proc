@@ -1,10 +1,13 @@
 import numpy
-import scipy
+import scipy.integrate
 
 def get_pulse_average_and_rms(tau, FWHM, HannApo):
     hann = lambda t: 0.5*(1-numpy.cos(2*numpy.pi*t/tau))
     
-    sigma = numpy.sqrt(2*numpy.log(2) / (numpy.pi*FWHM)**2)
+    if FWHM != 0:
+        sigma = numpy.sqrt(2*numpy.log(2) / (numpy.pi*FWHM)**2)
+    else:
+        sigma = numpy.inf
     gauss = lambda t: numpy.exp(-(t-tau/2)**2 / (2*sigma**2))
     
     if HannApo:
