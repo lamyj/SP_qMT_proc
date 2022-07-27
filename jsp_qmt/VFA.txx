@@ -114,6 +114,10 @@ auto non_linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
     //        = S0 (sin α ((1-E1) cos α - 1 + E1 cos α) ) / ((1 - E1 cos α)²)
     //        = S0 (sin α (cos α - 1)) / ((1 - E1 cos α)²)
     
+    // Scale the VFA data to improve the condition number of the Jacobian.
+    auto const scale = xt::amax(VFA);
+    auto const scaled_VFA = xt::eval(VFA/scale);
+    
     auto fit_parameters = gsl_multifit_nlinear_default_parameters();
     auto workspace = gsl_multifit_nlinear_alloc(
         gsl_multifit_nlinear_trust, &fit_parameters, FA.shape()[1], 2);
@@ -169,6 +173,7 @@ auto non_linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
     gsl_multifit_nlinear_free(workspace);
     
     auto T1 = -TR/xt::log(E1);
+    S0 *= scale;
     return std::make_pair(xt::eval(T1), S0);
 }
 
