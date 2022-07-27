@@ -121,12 +121,16 @@ auto non_linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
     
     gsl_multifit_nlinear_fdf system;
     using Data = std::tuple<
-        decltype(xt::axis_begin(FA)), decltype(xt::axis_begin(VFA)), std::size_t>;
+        T &, decltype(xt::axis_begin(scaled_VFA)), std::size_t>;
     system.f = signal<Data>;
     system.df = jacobian<Data>;
     system.fvv = NULL;
     system.n = FA.shape()[1];
     system.p = 2;
+    
+    Data params(FA, xt::axis_begin(scaled_VFA), FA.shape()[1]);
+    system.params = &params;
+    
     auto xtol=1e-8, gtol=1e-8, ftol=1e-8;
     
     // Initial guesses using the linear fit
@@ -134,12 +138,10 @@ auto non_linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
     auto E1_it = E1.begin(), S0_it = S0.begin();
     auto guess = gsl_vector_alloc(2);
     
-    auto VFA_it = xt::axis_begin(VFA);
+    auto & VFA_it = std::get<1>(params);
+    auto VFA_end = xt::axis_end(scaled_VFA);
     while(VFA_it != VFA_end)
     {
-        Data params(FA_it, VFA_it, FA.shape()[1]);
-        system.params = &params;
-        
         gsl_vector_set(guess, 0, *S0_it);
         gsl_vector_set(guess, 1, *E1_it);
         gsl_multifit_nlinear_winit(guess, nullptr, &system, workspace);
