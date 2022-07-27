@@ -154,8 +154,7 @@ auto non_linear_fit(T && FA, T && VFA, typename std::decay_t<T>::value_type TR)
         }
         else
         {
-            *S0_it = 0.;
-            *E1_it = 0.;
+            // Keep initial guess
         }
         
         ++E1_it;
