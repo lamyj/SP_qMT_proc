@@ -4,7 +4,7 @@ import sys
 
 from . import cli
 
-def main():
+def main(args=None):
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help="Available commands")
     command_parsers = {}
@@ -13,7 +13,7 @@ def main():
         subparser = module.setup(subparsers)
         subparser.set_defaults(action=module.main)
         command_parsers[module.main] = subparser
-    arguments = parser.parse_args()
+    arguments = parser.parse_args(args)
     
     if "action" not in arguments:
         parser.print_help()

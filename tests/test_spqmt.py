@@ -1,10 +1,32 @@
+import os
 import scipy
 import numpy
+import tempfile
 import unittest
 
+import nibabel
+
 import jsp_qmt
+import jsp_qmt.__main__
+
+here = os.path.dirname(os.path.abspath(__file__))
+data = os.path.join(here, "data")
+input = os.path.join(data, "input")
+baseline = os.path.join(data, "baseline")
 
 class TestSPqMT(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.cli_common = [
+            [
+                "spqmt",
+                ",".join(
+                    os.path.join(input, "{}.nii.gz".format(x))
+                    for x in ["MT0", "MTw"]),
+                os.path.join(baseline, "T1_map.nii.gz")],
+            ["12.0,2.1,0.2,31.0", "560,4e3,0,1,10"]
+        ]
+        
     def test_fit(self):
         gamma = 267.513 * 1e6
         R1 = 1.
@@ -64,6 +86,45 @@ class TestSPqMT(unittest.TestCase):
         value = jsp_qmt.spqmt.fit(data)
         
         numpy.testing.assert_allclose(value, F)
+    
+    def test_cli_no_option(self):
+        input = os.path.join(data, "input")
+        baseline = os.path.join(data, "baseline")
+        with tempfile.TemporaryDirectory() as directory:
+            output = os.path.join(directory, "MPF.nii.gz")
+            jsp_qmt.__main__.main([
+                *self.cli_common[0], output, *self.cli_common[1]])
+            
+            baseline_mpf = nibabel.load(
+                os.path.join(baseline, "MPF_map_no_option.nii.gz"))
+            output_mpf = nibabel.load(os.path.join(output))
+            
+            numpy.testing.assert_allclose(
+                numpy.array(baseline_mpf.dataobj),
+                numpy.array(output_mpf.dataobj))
+            numpy.testing.assert_allclose(
+                baseline_mpf.affine, output_mpf.affine)
+    
+    def test_cli_all_options(self):
+        input = os.path.join(data, "input")
+        baseline = os.path.join(data, "baseline")
+        with tempfile.TemporaryDirectory() as directory:
+            output = os.path.join(directory, "MPF.nii.gz")
+            jsp_qmt.__main__.main([
+                *self.cli_common[0], output, *self.cli_common[1],
+                "--B1", os.path.join(input, "B1_map.nii.gz"),
+                "--B0", os.path.join(input, "B0_map.nii.gz"),
+                "--mask", os.path.join(input, "mask.nii.gz")])
+            
+            baseline_mpf = nibabel.load(
+                os.path.join(baseline, "MPF_map_all_options.nii.gz"))
+            output_mpf = nibabel.load(os.path.join(output))
+            
+            numpy.testing.assert_allclose(
+                numpy.array(baseline_mpf.dataobj),
+                numpy.array(output_mpf.dataobj))
+            numpy.testing.assert_allclose(
+                baseline_mpf.affine, output_mpf.affine)
 
 if __name__ == "__main__":
     unittest.main()
